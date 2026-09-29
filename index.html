@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高校野球部 練習計画＆過去ログシステム</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans JP & Oswald -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f1f5f9; /* Slate 100 - 白地ベース */
+            color: #0f172a; /* Slate 900 */
+        }
+        .font-num {
+            font-family: 'Oswald', sans-serif;
+        }
+        /* 丸みを排除したシャープな角 */
+        * {
+            border-radius: 0px !important;
+        }
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* 印刷用スタイル (A4掲示用紙) */
+        @media print {
+            body {
+                background-color: #ffffff !important;
+                color: #000000 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .print-card {
+                border: 2px solid #000000 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                box-shadow: none !important;
+            }
+            .print-header {
+                border-bottom: 3px double #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-slate-800 selection:text-white">
+
+    <!-- 初期表示: ログイン画面 -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+        <div class="bg-white border-2 border-slate-800 w-full max-w-md p-6 sm:p-8 shadow-2xl">
+            <div class="text-center mb-6 pb-4 border-b-2 border-slate-900">
+                <div class="bg-emerald-700 text-white font-num font-bold text-2xl px-3 py-1 inline-block mb-2">
+                    BASEBALL LOG
+                </div>
+                <h1 class="text-xl font-black text-slate-900 tracking-wider">高校野球部 練習管理システム</h1>
+                <p class="text-xs text-slate-600 font-bold mt-1">ログインアカウントを選択してください</p>
+            </div>
+
+            <!-- ログインモード切替タブ -->
+            <div class="grid grid-cols-2 gap-2 mb-6">
+                <button type="button" id="tab-student" onclick="switchLoginTab('student')" 
+                    class="py-2.5 text-xs font-bold border-2 border-slate-900 bg-slate-900 text-white transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-graduate"></i>
+                    <span>部員ログイン</span>
+                </button>
+                <button type="button" id="tab-coach" onclick="switchLoginTab('coach')" 
+                    class="py-2.5 text-xs font-bold border-2 border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-tie"></i>
+                    <span>指導者ログイン</span>
+                </button>
+            </div>
+
+            <!-- エラー表示メッセージ -->
+            <div id="login-error" class="hidden mb-4 bg-rose-50 border-l-4 border-rose-600 p-2.5 text-xs font-bold text-rose-800">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> パスワードが正しくありません。
+            </div>
+
+            <!-- ログインフォーム -->
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label id="login-label" class="block text-xs font-bold text-slate-800 mb-1">
+                        部員用パスワードを入力 (2026)
+                    </label>
+                    <input type="password" id="login-password" placeholder="パスワードを入力" required
+                        class="w-full bg-slate-50 border-2 border-slate-300 text-slate-900 p-3 font-num font-bold tracking-widest focus:outline-none focus:border-slate-900 focus:bg-white text-sm">
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-3 text-sm border-2 border-emerald-950 transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span>ログインする</span>
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-200 text-center text-[11px] text-slate-500 font-bold">
+                ※指導者: 0000 / 部員: 2026
+            </div>
+        </div>
+    </div>
+
+    <!-- ヘッダー -->
+    <header class="bg-slate-900 border-b-4 border-emerald-700 px-4 py-3 text-white no-print">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-700 border border-emerald-500 px-3 py-1 font-num text-xl font-bold tracking-wider text-white">
+                    BASEBALL LOG
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-wider uppercase text-slate-100">硬式野球部 練習管理共有システム</h1>
+                    <p class="text-xs text-slate-300">指導方針の可視化と練習ログのアーカイブ化</p>
+                </div>
+            </div>
+
+            <!-- 操作・モード表示 & ログアウト -->
+            <div class="flex items-center space-x-2">
+                <div class="bg-slate-800 border border-slate-700 px-3 py-1.5 flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-bold">ログイン中:</span>
+                    <span id="header-role-badge" class="text-xs font-bold px-2 py-0.5 bg-emerald-700 text-white">
+                        部員
+                    </span>
+                    <button onclick="logout()" class="text-xs font-bold text-slate-300 hover:text-white border-l border-slate-600 pl-2 ml-1 transition-colors">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i>ログアウト
+                    </button>
+                </div>
+
+                <!-- 指導者用管理ボタン群 -->
+                <button id="nav-manage-btn" onclick="openManageModal()" class="hidden bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-3 py-2 border border-slate-500 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>設定管理(タグ/テンプレ)</span>
+                </button>
+
+                <button id="nav-create-btn" onclick="openCreateModal()" class="hidden bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 border border-emerald-600 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新規メニュー作成</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- 左側メイン：選択中の練習メニュー (8カラム) -->
+        <section class="lg:col-span-8 flex flex-col space-y-6">
+            
+            <!-- 印刷ヘッダー（通常非表示） -->
+            <div class="hidden print-only mb-4 text-center print-header pb-2">
+                <h1 class="text-2xl font-black tracking-widest text-black">高校野球部 練習指示書</h1>
+                <p id="print-subtitle" class="text-sm text-slate-700 font-bold mt-1"></p>
+            </div>
+
+            <!-- メニューカード -->
+            <div id="main-menu-card" class="bg-white border-2 border-slate-300 p-6 shadow-sm relative">
+                <!-- ステータスバー -->
+                <div class="flex flex-wrap justify-between items-start border-b-2 border-slate-800 pb-4 mb-5 gap-2">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span id="view-category" class="text-xs bg-slate-900 text-white font-bold px-2.5 py-1 uppercase tracking-wider">---</span>
+                            <span id="view-date" class="font-num text-xl font-bold tracking-wider text-emerald-800">---</span>
+                            <span id="view-day" class="text-xs bg-slate-800 text-white px-2 py-0.5 font-bold">---</span>
+                            <span id="view-target" class="text-xs bg-slate-100 border border-slate-400 text-slate-800 font-bold px-2 py-0.5">---</span>
+                        </div>
+                        <h2 id="view-title" class="text-2xl font-black text-slate-900 tracking-wide">メニューを選択してください</h2>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 no-print">
+                        <button onclick="handlePrintClick()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3 py-2 border border-slate-400 flex items-center gap-1">
+                            <i class="fa-solid fa-print"></i> 印刷 / A4出力
+                        </button>
+                        <button id="coach-edit-btn" onclick="editCurrentMenu()" class="hidden bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 border border-amber-800 flex items-center gap-1">
+                            <i class="fa-solid fa-pen-to-square"></i> 編集
+                        </button>
+                        <button id="coach-delete-btn" onclick="deleteCurrentMenu()" class="hidden bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold px-3 py-2 border border-rose-900 flex items-center gap-1">
+                            <i class="fa-solid fa-trash"></i> 削除
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 練習テーマ・基本情報 -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+                    <div class="bg-slate-50 p-3 border-l-4 border-emerald-700 border-y border-r border-slate-200">
+                        <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">練習メインテーマ</div>
+                        <div id="view-theme" class="text-sm font-bold text-slate-900">---</div>
+                    </div>
+                    <div class="bg-slate-50 p-3 border-l-4 border-slate-700 border-y border-r border-slate-200">
+                        <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">場所 / 時間</div>
+                        <div id="view-location-time" class="text-sm font-bold text-slate-900">---</div>
+                    </div>
+                    <div class="bg-slate-50 p-3 border-l-4 border-slate-700 border-y border-r border-slate-200">
+                        <div class="text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">天候 / グラウンド状況</div>
+                        <div id="view-weather" class="text-sm font-bold text-slate-900">---</div>
+                    </div>
+                </div>
+
+                <!-- 練習行程・Wordスタイル (左:時間軸 / 右:内容テキスト) -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 mb-3 flex items-center gap-2 border-b border-slate-300 pb-2">
+                        <i class="fa-solid fa-list-check text-emerald-700"></i>
+                        <span>練習行程・タイムスケジュール</span>
+                    </h3>
+                    
+                    <!-- 行ごとの高さが自動で揃う2カラム枠 -->
+                    <div id="view-schedule-container" class="border-2 border-slate-300 bg-white divide-y-2 divide-slate-200">
+                        <!-- JSで動的に時間枠・詳細枠を結合描画 -->
+                    </div>
+                </div>
+
+                <!-- 指導者からの訓示・注意事項 -->
+                <div class="bg-amber-50/50 border border-amber-300 border-l-4 border-l-amber-600 p-4 mb-6">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-900 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-bullhorn text-amber-700"></i>
+                        <span>指導者コメント・本日の重点要求事項</span>
+                    </h3>
+                    <p id="view-notes" class="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">---</p>
+                </div>
+
+                <!-- 部員用：振り返り・個人課題メモ欄 -->
+                <div class="border-t border-slate-300 pt-4 no-print">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                            <i class="fa-solid fa-pen text-slate-500"></i>
+                            <span>部員個人メモ・振り返り保存 (端末ローカル保存)</span>
+                        </h3>
+                        <span id="memo-saved-indicator" class="text-xs font-bold text-emerald-700 opacity-0 transition-opacity">保存完了</span>
+                    </div>
+                    <textarea id="member-daily-memo" rows="2" placeholder="本日の個人の反省点、気づき、次の課題を入力..." 
+                        class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2.5 text-xs focus:outline-none focus:border-slate-600 focus:bg-white"></textarea>
+                    <div class="flex justify-end mt-2">
+                        <button onclick="saveMemberMemo()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3 py-1.5 border border-slate-900">
+                            メモを保存
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右側サイドバー：過去ログ一覧・検索 (4カラム) -->
+        <section class="lg:col-span-4 flex flex-col space-y-4 no-print">
+            <!-- 検索 & フィルター -->
+            <div class="bg-white border-2 border-slate-300 p-4 shadow-sm">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-box-archive text-slate-500"></i>
+                    <span>練習ログ・検索アーカイブ</span>
+                </h3>
+                
+                <div class="space-y-2">
+                    <div>
+                        <input type="text" id="search-input" onkeyup="filterLogs()" placeholder="フリーワード検索 (キーワード・メモ)" 
+                            class="w-full bg-slate-50 border border-slate-300 text-slate-900 px-3 py-2 text-xs focus:outline-none focus:border-slate-600 focus:bg-white">
+                    </div>
+                    <div>
+                        <select id="filter-category" onchange="filterLogs()" class="w-full bg-slate-50 border border-slate-300 text-slate-900 px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-slate-600">
+                            <option value="">すべての区分 (タグ)</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="filter-target" onchange="filterLogs()" class="bg-slate-50 border border-slate-300 text-slate-900 px-2 py-1.5 text-xs focus:outline-none focus:border-slate-600">
+                            <option value="">全ての対象</option>
+                            <option value="全員">全員</option>
+                            <option value="Aチーム">Aチーム</option>
+                            <option value="Bチーム">Bチーム</option>
+                            <option value="投手陣">投手陣</option>
+                            <option value="野手陣">野手陣</option>
+                        </select>
+                        <select id="filter-month" onchange="filterLogs()" class="bg-slate-50 border border-slate-300 text-slate-900 px-2 py-1.5 text-xs focus:outline-none focus:border-slate-600">
+                            <option value="">全期間</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 過去ログリスト -->
+            <div class="bg-white border-2 border-slate-300 p-4 flex-grow flex flex-col shadow-sm">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-200">
+                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">保存済みログ一覧</span>
+                    <span id="log-count" class="text-xs font-num bg-slate-100 px-2 py-0.5 border border-slate-300 text-slate-800 font-bold">0件</span>
+                </div>
+
+                <div id="logs-list-container" class="space-y-2 overflow-y-auto max-h-[600px] pr-1">
+                    <!-- JSでカード一覧動的挿入 -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 新規作成/編集モーダル -->
+    <div id="editor-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white border-2 border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl">
+            
+            <!-- モーダルヘッダー -->
+            <div class="bg-slate-900 px-6 py-3.5 border-b border-slate-800 text-white flex justify-between items-center">
+                <h2 id="modal-title" class="text-base font-black tracking-wider">練習メニュー新規作成</h2>
+                <button onclick="closeCreateModal()" class="text-slate-300 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- エラー表示メッセージ -->
+            <div id="editor-error" class="hidden mx-6 mt-3 bg-rose-50 border-l-4 border-rose-600 p-2.5 text-xs font-bold text-rose-800">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> 実施日付と練習タイトルを入力してください。
+            </div>
+
+            <!-- モーダルフォームボディ -->
+            <div class="p-6 overflow-y-auto space-y-4 flex-grow text-xs text-slate-900">
+                
+                <!-- テンプレートクイック適用 -->
+                <div class="bg-slate-100 p-3 border border-slate-300 flex items-center justify-between flex-wrap gap-2">
+                    <span class="font-bold text-slate-800">テンプレート適用:</span>
+                    <div id="template-buttons-container" class="flex flex-wrap gap-1.5">
+                        <!-- 動的にテンプレートボタン生成 -->
+                    </div>
+                </div>
+
+                <!-- 基本情報 -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">実施日付 *</label>
+                        <input type="date" id="input-date" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">練習区分 (タグ) *</label>
+                        <select id="input-category" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 font-bold focus:border-slate-600 focus:bg-white">
+                            <!-- 動的にタグ選択肢生成 -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">対象 *</label>
+                        <select id="input-target" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white">
+                            <option value="全員">全員</option>
+                            <option value="Aチーム">Aチーム</option>
+                            <option value="Bチーム">Bチーム</option>
+                            <option value="投手陣">投手陣</option>
+                            <option value="野手陣">野手陣</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">場所 / 時間</label>
+                        <input type="text" id="input-location" placeholder="例: 本グラウンド (16:00-18:30)" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="md:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-1">練習タイトル *</label>
+                        <input type="text" id="input-title" placeholder="例: 秋季大会直前 実戦守備連携＆ケース打撃" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">天候</label>
+                        <input type="text" id="input-weather" placeholder="例: 晴れ (グラウンド良好)" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">本日のメインテーマ</label>
+                    <input type="text" id="input-theme" placeholder="例: 2アウトからの送球判断徹底 / 走塁の一歩目の意識" class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white">
+                </div>
+
+                <!-- 時間枠ごとの行程入力セクション -->
+                <div class="border-2 border-slate-300 p-3 bg-slate-50">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-300">
+                        <div>
+                            <span class="font-bold text-slate-900 text-xs">練習行程（時間枠ごとの入力）</span>
+                            <span class="text-[11px] text-slate-500 font-bold block sm:inline sm:ml-2">※時間枠ごとに詳細内容を入力してください</span>
+                        </div>
+                        <button type="button" onclick="addScheduleRow()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-1 text-xs border border-slate-900 flex items-center gap-1">
+                            <i class="fa-solid fa-plus text-emerald-400"></i> 時間枠を追加
+                        </button>
+                    </div>
+
+                    <!-- 行リストコンテナ -->
+                    <div id="editor-schedule-rows" class="space-y-3">
+                        <!-- JSで枠（時間+テキストエリア）を動的生成 -->
+                    </div>
+                </div>
+
+                <!-- 訓示・メッセージ -->
+                <div>
+                    <label class="block font-bold text-slate-700 mb-1">指導者指示・コメント・連絡事項</label>
+                    <textarea id="input-notes" rows="2" placeholder="練習全体の注意点、ミーティングで伝えた内容、明日への課題など..." class="w-full bg-slate-50 border border-slate-300 text-slate-900 p-2 focus:border-slate-600 focus:bg-white"></textarea>
+                </div>
+
+            </div>
+
+            <!-- モーダルフッター -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-300 flex justify-between items-center">
+                <button type="button" onclick="saveAsNewTemplate()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold px-3 py-1.5 border border-slate-400 text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-floppy-disk text-slate-600"></i>
+                    <span>入力内容をテンプレート保存</span>
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeCreateModal()" class="bg-white border border-slate-400 hover:bg-slate-200 text-slate-800 font-bold px-4 py-1.5">
+                        キャンセル
+                    </button>
+                    <button onclick="saveMenu()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold px-6 py-1.5 border border-emerald-900">
+                        保存して共有
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 指導者用：タグ＆テンプレート管理モーダル -->
+    <div id="manage-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white border-2 border-slate-800 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="bg-slate-900 px-6 py-3 border-b border-slate-800 text-white flex justify-between items-center">
+                <h2 class="text-sm font-black tracking-wider"><i class="fa-solid fa-sliders text-emerald-400 mr-2"></i>設定管理（タグ＆テンプレート）</h2>
+                <button onclick="closeManageModal()" class="text-slate-300 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6 flex-grow text-xs text-slate-900">
+                <!-- タグ（練習区分）の管理 -->
+                <div class="border-2 border-slate-300 p-4 bg-slate-50">
+                    <h3 class="font-bold text-slate-900 text-xs border-b border-slate-300 pb-2 mb-3 flex items-center justify-between">
+                        <span><i class="fa-solid fa-tags text-slate-600 mr-1.5"></i>練習区分 (タグ) の追加・削除</span>
+                    </h3>
+
+                    <!-- タグ追加フォーム -->
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="new-tag-input" placeholder="新しいタグ名を入力 (例: 直前調整)" class="flex-1 bg-white border border-slate-300 p-2 font-bold focus:border-slate-600">
+                        <button onclick="addNewTag()" class="bg-emerald-800 hover:bg-emerald-700 text-white font-bold px-4 py-2 border border-emerald-900 shrink-0">
+                            追加
+                        </button>
+                    </div>
+
+                    <!-- 登録済みタグ一覧 -->
+                    <div id="manage-tags-list" class="flex flex-wrap gap-2">
+                        <!-- JSで動的描画 -->
+                    </div>
+                </div>
+
+                <!-- テンプレートの管理 -->
+                <div class="border-2 border-slate-300 p-4 bg-slate-50">
+                    <h3 class="font-bold text-slate-900 text-xs border-b border-slate-300 pb-2 mb-3">
+                        <i class="fa-solid fa-file-lines text-slate-600 mr-1.5"></i>登録済みテンプレート一覧・削除
+                    </h3>
+
+                    <div id="manage-templates-list" class="space-y-2">
+                        <!-- JSで動的描画 -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-300 flex justify-end">
+                <button onclick="closeManageModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 py-1.5 border border-slate-900">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 削除確認モーダル -->
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white border-2 border-slate-800 w-full max-w-sm p-6 shadow-2xl space-y-4">
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                <span>削除の確認</span>
+            </h3>
+            <p class="text-xs font-bold text-slate-700 leading-relaxed">選択中の練習メニューログを削除します。元に戻すことはできません。よろしいですか？</p>
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                <button onclick="closeDeleteModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1.5 text-xs border border-slate-300">
+                    キャンセル
+                </button>
+                <button onclick="confirmDeleteMenu()" class="bg-rose-700 hover:bg-rose-800 text-white font-bold px-4 py-1.5 text-xs border border-rose-900">
+                    削除する
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 印刷ヘルプ・案内モーダル (Koder/アプリ内ブラウザ用) -->
+    <div id="print-guide-modal" class="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 hidden no-print">
+        <div class="bg-white border-2 border-slate-800 w-full max-w-md p-6 shadow-2xl space-y-4 text-xs">
+            <div class="flex justify-between items-center border-b border-slate-300 pb-2">
+                <h3 class="text-sm font-black text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-print text-emerald-700"></i>
+                    <span>印刷 / PDF出力について</span>
+                </h3>
+                <button onclick="closePrintGuideModal()" class="text-slate-400 hover:text-slate-700 font-bold text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <p class="font-medium text-slate-800 leading-relaxed">
+                印刷ダイアログが開かない場合、Koder等のエディタアプリ内内蔵プレビューによる制限が原因です。
+            </p>
+
+            <div class="bg-slate-100 p-3 border border-slate-300 space-y-2 font-bold text-slate-800">
+                <div class="text-emerald-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>Koder・アプリ環境での印刷方法</span>
+                </div>
+                <ol class="list-decimal list-inside space-y-1 font-medium text-slate-700 text-[11px]">
+                    <li>画面右上の「Safariで開く (Open in Safari)」や共有ボタンから **Safari** や **Chrome** で本ページを開いて印刷を行ってください。</li>
+                    <li>または画面のスクリーンショットを撮影して保存・印刷してください。</li>
+                </ol>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closePrintGuideModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 border border-slate-900">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // デフォルトのカテゴリ（タグ）データ
+        const DEFAULT_CATEGORIES = ["通常練習", "大会前", "大会期間", "雨天室内練習", "ノースローデー", "遠征・練習試合"];
+
+        // デフォルトのテンプレートデータ
+        const DEFAULT_TEMPLATES = [
+            {
+                id: "tpl-weekday",
+                name: "平日標準 (2.5h)",
+                category: "通常練習",
+                title: "平日標準練習（守備＆打撃強化）",
+                theme: "基本動作の徹底とスピード感をもったメニュー消化",
+                location: "本グラウンド (16:00 - 18:30)",
+                schedule: [
+                    { time: "16:00 - 16:25", detail: "【W-UP & キャッチボール】\nストレッチ / ペッパー / 距離別キャッチボール\n★意識: 足を使って捕球する" },
+                    { time: "16:25 - 17:10", detail: "【ポジション別守備】\n内野ゴロ捕球 / 外野アメリカン・フライ捕球\n★意識: 一歩目の切り替え" },
+                    { time: "17:10 - 18:00", detail: "【フリー打撃 & 筋力トレ】\n2ケージマシン / 連続ティー / 下半身強化\n★意識: 振り切るスイング" },
+                    { time: "18:00 - 18:30", detail: "【グラウンド整備・ミーティング】\nトンボ掛け / 用具格納 / 指導者講話\n★意識: 明日の目標明確化" }
+                ]
+            },
+            {
+                id: "tpl-weekend",
+                name: "休日全日 (6h)",
+                category: "大会前",
+                title: "休日一日練習（実戦・シート打撃中心）",
+                theme: "試合状況に応じた判断力育成と連携強化",
+                location: "本グラウンド (08:30 - 15:30)",
+                schedule: [
+                    { time: "08:30 - 09:15", detail: "【アップ・キャッチボール】\n動的ストレッチ / 短距離スプリント / 遠投\n★意識: 全身の連動性" },
+                    { time: "09:15 - 10:30", detail: "【シートノック・連携】\nカットプレー / バント処理 / ランダウンプレイ\n★意識: 大きな声援と正確な指示" },
+                    { time: "10:30 - 12:00", detail: "【シート打撃 (実戦形式)】\nカウント1-1からの実戦勝負 (投手陣登板)\n★意識: ストライクゾーンの厳選" },
+                    { time: "12:00 - 13:00", detail: "【昼食・休憩】\n栄養補給・各自ミーティング" },
+                    { time: "13:00 - 14:45", detail: "【個別強化・特打・特守】\n課題別グループローテーション\n★意識: 自分の弱点克服" },
+                    { time: "14:45 - 15:30", detail: "【ダウン・整備・総括】\nストレッチ / メイングラウンド整備\n★意識: 本日の振り返り" }
+                ]
+            },
+            {
+                id: "tpl-rainy",
+                name: "雨天室内",
+                category: "雨天室内練習",
+                title: "雨天室内メニュー（フィジカル＆座学）",
+                theme: "筋力向上と野球理論・サインの再確認",
+                location: "室内練習場・ミーティングルーム (16:00 - 18:15)",
+                schedule: [
+                    { time: "16:00 - 16:45", detail: "【フィジカルサーキット】\n体幹 / ウエイトトレーニング / シャトルラン\n★意識: 追い込みと限界の打破" },
+                    { time: "16:45 - 17:30", detail: "【室内打撃・バント】\nシャドー / 羽根打ち / 鏡前フォームチェック\n★意識: トップの位置の確認" },
+                    { time: "17:30 - 18:15", detail: "【野球知識・スコア座学】\n過去の試合映像確認・配球・ルールの学習\n★意識: 野球IQの向上" }
+                ]
+            }
+        ];
+
+        // サンプルデータ
+        const SAMPLE_DATA = [
+            {
+                id: "log-2026-09-29",
+                date: "2026-09-29",
+                day: "火",
+                category: "大会前",
+                target: "全員",
+                title: "実戦守備連携＆ケース打撃",
+                theme: "1死二三塁での中間守備・前進守備の判断徹底と走塁意識",
+                location: "メイングラウンド (16:00 - 18:45)",
+                weather: "晴れ (風強)",
+                notes: "大会前の実戦モード。シートノックでの初球のミスを許さないこと。\nベンチからの声かけ（アウトカウント・配球予測）を徹底し、全員で試合を作る姿勢を見せること。",
+                schedule: [
+                    { time: "16:00 - 16:20", detail: "【ウォーミングアップ】\n動的ストレッチ / 70mペッパー / キャッチボール (基本形・クイック)\n★意識: 相手の胸元への正確な送球" },
+                    { time: "16:20 - 16:50", detail: "【シートノック】\n外野バックホーム / 内野ゲッツーパターン / 2死走者付ノック (各2本)\n★意識: 声の掛け合いとカバーリングの徹底" },
+                    { time: "16:50 - 17:40", detail: "【ケース打撃 / 守備連携】\n1死二三塁 / 無死一塁（エンドラン・バント処理）各3巡\n★意識: カウントごとの狙い球絞り" },
+                    { time: "17:40 - 18:20", detail: "【フリー打撃 & 投手ピッチング】\n2ケージ (マシン・手投げ) 各20球 × 3セット / 投手陣 ブルペン投球50本\n★意識: 低めの球を逆方向に打ち返す" },
+                    { time: "18:20 - 18:35", detail: "【コンディショニング】\n100mスプリント × 5本 (タイム設定あり)\n★意識: 走塁時の切り返しと最後まで走り抜く姿勢" },
+                    { time: "18:35 - 18:45", detail: "【整備・グラウンド清掃】\nトンボ掛け / 用具手入れ / 終礼\n★意識: 感謝の気持ちを持った用具の取り扱い" }
+                ]
+            },
+            {
+                id: "log-2026-09-28",
+                date: "2026-09-28",
+                day: "月",
+                category: "雨天室内練習",
+                target: "野手陣",
+                title: "基本打撃フォーム固め & 室内バント練習",
+                theme: "軸足での溜めとインパクトでの押し込みの獲得",
+                location: "雨天練習場 (16:00 - 18:00)",
+                weather: "雨",
+                notes: "あいにくの雨のため室内にて徹底したフォーム見直しを実施。\nバント処理は決められたコース（サード・ファースト前）に殺した打球を落とせるまで継続すること。",
+                schedule: [
+                    { time: "16:00 - 16:30", detail: "【体幹 & サーキット】\n自重筋トレ5種目 / メディシンボール投げ\n★意識: 股関節の可動域と体幹の安定" },
+                    { time: "16:30 - 17:15", detail: "【ティーバッティング】\n置ティー / 連続ティー / カウント別バント練習 各100本\n★意識: バットの軌道確認とヘッドの立て方" },
+                    { time: "17:15 - 17:50", detail: "【シャドーピッチ & 守備座学】\nスコアブック分析 / 牽制サイン確認\n★意識: 頭の整理とサインプレーの共通理解" },
+                    { time: "17:50 - 18:00", detail: "【ダウン・片付け】\n静的ストレッチ / ミーティング\n★意識: 疲れを残さないセルフケア" }
+                ]
+            }
+        ];
+
+        let currentRole = 'student';
+        let selectedLoginRole = 'student';
+        let menuLogs = [];
+        let categoriesList = [];
+        let templatesList = [];
+        let selectedMenuId = null;
+        let editingMenuId = null;
+
+        const PASSWORDS = {
+            coach: '0000',
+            student: '2026'
+        };
+
+        window.onload = function() {
+            loadCategories();
+            loadTemplates();
+            loadLogsFromStorage();
+            populateMonthFilter();
+            
+            if (menuLogs.length > 0) {
+                selectMenu(menuLogs[0].id);
+            } else {
+                renderLogsList();
+            }
+            
+            switchLoginTab('student');
+            document.getElementById('login-screen').classList.remove('hidden');
+        };
+
+        // タグ (練習区分) の読込・保存
+        function loadCategories() {
+            const stored = localStorage.getItem('hs_baseball_categories');
+            if (stored) {
+                try { categoriesList = JSON.parse(stored); } catch (e) { categoriesList = [...DEFAULT_CATEGORIES]; }
+            } else {
+                categoriesList = [...DEFAULT_CATEGORIES];
+                localStorage.setItem('hs_baseball_categories', JSON.stringify(categoriesList));
+            }
+            updateCategorySelects();
+        }
+
+        function saveCategories() {
+            localStorage.setItem('hs_baseball_categories', JSON.stringify(categoriesList));
+            updateCategorySelects();
+        }
+
+        function updateCategorySelects() {
+            const filterCat = document.getElementById('filter-category');
+            const inputCat = document.getElementById('input-category');
+            
+            const currentFilterVal = filterCat.value;
+            const currentInputVal = inputCat.value;
+
+            filterCat.innerHTML = '<option value="">すべての区分 (タグ)</option>';
+            inputCat.innerHTML = '';
+
+            categoriesList.forEach(cat => {
+                filterCat.innerHTML += `<option value="${cat}">${cat}</option>`;
+                inputCat.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+
+            filterCat.value = currentFilterVal;
+            inputCat.value = currentInputVal || categoriesList[0] || '';
+        }
+
+        // テンプレートの読込・保存
+        function loadTemplates() {
+            const stored = localStorage.getItem('hs_baseball_templates');
+            if (stored) {
+                try { templatesList = JSON.parse(stored); } catch (e) { templatesList = [...DEFAULT_TEMPLATES]; }
+            } else {
+                templatesList = [...DEFAULT_TEMPLATES];
+                localStorage.setItem('hs_baseball_templates', JSON.stringify(templatesList));
+            }
+            renderTemplateButtons();
+        }
+
+        function saveTemplates() {
+            localStorage.setItem('hs_baseball_templates', JSON.stringify(templatesList));
+            renderTemplateButtons();
+        }
+
+        function renderTemplateButtons() {
+            const container = document.getElementById('template-buttons-container');
+            container.innerHTML = '';
+            templatesList.forEach(tpl => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.onclick = () => applyTemplateById(tpl.id);
+                btn.className = 'bg-white hover:bg-slate-200 text-slate-800 border border-slate-400 px-2 py-1 font-bold transition-all';
+                btn.textContent = tpl.name;
+                container.appendChild(btn);
+            });
+        }
+
+        // ログイン処理関連
+        function switchLoginTab(role) {
+            selectedLoginRole = role;
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('login-password').value = '';
+
+            const tabStudent = document.getElementById('tab-student');
+            const tabCoach = document.getElementById('tab-coach');
+            const label = document.getElementById('login-label');
+
+            if (role === 'student') {
+                tabStudent.className = "py-2.5 text-xs font-bold border-2 border-slate-900 bg-slate-900 text-white transition-all flex items-center justify-center gap-1.5";
+                tabCoach.className = "py-2.5 text-xs font-bold border-2 border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5";
+                label.textContent = "部員用パスワードを入力 (2026)";
+            } else {
+                tabCoach.className = "py-2.5 text-xs font-bold border-2 border-slate-900 bg-slate-900 text-white transition-all flex items-center justify-center gap-1.5";
+                tabStudent.className = "py-2.5 text-xs font-bold border-2 border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all flex items-center justify-center gap-1.5";
+                label.textContent = "指導者用パスワードを入力 (0000)";
+            }
+        }
+
+        function handleLoginSubmit(e) {
+            if (e) e.preventDefault();
+            const passwordInput = document.getElementById('login-password').value.trim();
+            const errorBox = document.getElementById('login-error');
+
+            if (passwordInput === PASSWORDS[selectedLoginRole]) {
+                errorBox.classList.add('hidden');
+                document.getElementById('login-password').value = '';
+                document.getElementById('login-screen').classList.add('hidden');
+                setRole(selectedLoginRole);
+            } else {
+                errorBox.classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('login-password').value = '';
+            document.getElementById('login-error').classList.add('hidden');
+            switchLoginTab('student');
+        }
+
+        function setRole(role) {
+            currentRole = role;
+            const badge = document.getElementById('header-role-badge');
+            const createBtn = document.getElementById('nav-create-btn');
+            const manageBtn = document.getElementById('nav-manage-btn');
+            const editBtn = document.getElementById('coach-edit-btn');
+            const deleteBtn = document.getElementById('coach-delete-btn');
+
+            if (role === 'coach') {
+                badge.textContent = '指導者';
+                badge.className = 'text-xs font-bold px-2 py-0.5 bg-amber-600 text-white';
+                createBtn.classList.remove('hidden');
+                manageBtn.classList.remove('hidden');
+                editBtn.classList.remove('hidden');
+                deleteBtn.classList.remove('hidden');
+            } else {
+                badge.textContent = '部員';
+                badge.className = 'text-xs font-bold px-2 py-0.5 bg-emerald-700 text-white';
+                createBtn.classList.add('hidden');
+                manageBtn.classList.add('hidden');
+                editBtn.classList.add('hidden');
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        function loadLogsFromStorage() {
+            const stored = localStorage.getItem('hs_baseball_logs');
+            if (stored) {
+                try { menuLogs = JSON.parse(stored); } catch (e) { menuLogs = [...SAMPLE_DATA]; }
+            } else {
+                menuLogs = [...SAMPLE_DATA];
+                saveLogsToStorage();
+            }
+        }
+
+        function saveLogsToStorage() {
+            localStorage.setItem('hs_baseball_logs', JSON.stringify(menuLogs));
+        }
+
+        function populateMonthFilter() {
+            const filterMonth = document.getElementById('filter-month');
+            const currentVal = filterMonth.value;
+            const months = new Set();
+            menuLogs.forEach(log => {
+                if (log.date) months.add(log.date.substring(0, 7));
+            });
+
+            const sortedMonths = Array.from(months).sort().reverse();
+            filterMonth.innerHTML = '<option value="">全期間</option>';
+            
+            sortedMonths.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                const [y, monthNum] = m.split('-');
+                opt.textContent = `${y}年${parseInt(monthNum)}月`;
+                filterMonth.appendChild(opt);
+            });
+
+            filterMonth.value = currentVal;
+        }
+
+        // 旧フォーマット互換性吸収関数
+        function getLogScheduleArray(log) {
+            if (Array.isArray(log.schedule)) {
+                return log.schedule;
+            }
+            if (log.scheduleTime !== undefined || log.scheduleDetail !== undefined) {
+                const times = (log.scheduleTime || '').split('\n\n');
+                const details = (log.scheduleDetail || '').split('\n\n');
+                const maxLen = Math.max(times.length, details.length);
+                const arr = [];
+                for (let i = 0; i < maxLen; i++) {
+                    arr.push({
+                        time: times[i] || '',
+                        detail: details[i] || ''
+                    });
+                }
+                return arr;
+            }
+            return [];
+        }
+
+        // メインビュー表示
+        function selectMenu(id) {
+            selectedMenuId = id;
+            const log = menuLogs.find(item => item.id === id);
+            if (!log) return;
+
+            document.getElementById('view-category').textContent = log.category || '通常練習';
+            document.getElementById('view-date').textContent = log.date;
+            document.getElementById('view-day').textContent = log.day ? `(${log.day})` : '';
+            document.getElementById('view-target').textContent = `対象: ${log.target || '全員'}`;
+            document.getElementById('view-title').textContent = log.title;
+            document.getElementById('view-theme').textContent = log.theme || 'なし';
+            document.getElementById('view-location-time').textContent = log.location || 'なし';
+            document.getElementById('view-weather').textContent = log.weather || 'なし';
+            document.getElementById('view-notes').textContent = log.notes || '指示事項なし';
+
+            const printSub = document.getElementById('print-subtitle');
+            if (printSub) {
+                printSub.textContent = `${log.date} (${log.day || ''}) | ${log.category || ''} | 対象: ${log.target || '全員'}`;
+            }
+
+            // Wordスタイルの2カラム（左:時間軸 / 右:内容詳細）行レンダリング
+            const container = document.getElementById('view-schedule-container');
+            container.innerHTML = '';
+
+            const scheduleArr = getLogScheduleArray(log);
+
+            if (scheduleArr.length === 0) {
+                container.innerHTML = `<div class="p-4 text-xs font-bold text-slate-500 text-center">行程未設定</div>`;
+            } else {
+                scheduleArr.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'flex flex-row min-h-[50px]';
+                    row.innerHTML = `<div class="w-32 sm:w-44 bg-slate-100 p-3 font-num font-bold text-slate-800 text-xs sm:text-sm border-r-2 border-slate-300 shrink-0 whitespace-pre-wrap select-text leading-relaxed text-left">${escapeHtml(item.time || '')}</div><div class="flex-1 p-3 text-slate-900 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-medium select-text text-left">${escapeHtml(item.detail || '')}</div>`;
+                    container.appendChild(row);
+                });
+            }
+
+            const savedMemo = localStorage.getItem(`memo_${id}`) || '';
+            document.getElementById('member-daily-memo').value = savedMemo;
+
+            renderLogsList();
+        }
+
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function filterLogs() {
+            renderLogsList();
+        }
+
+        function renderLogsList() {
+            const container = document.getElementById('logs-list-container');
+            const searchKeyword = document.getElementById('search-input').value.toLowerCase();
+            const categoryFilter = document.getElementById('filter-category').value;
+            const targetFilter = document.getElementById('filter-target').value;
+            const monthFilter = document.getElementById('filter-month').value;
+
+            const filtered = menuLogs.filter(log => {
+                const schedArr = getLogScheduleArray(log);
+                const schedText = schedArr.map(s => (s.time + ' ' + s.detail)).join(' ').toLowerCase();
+
+                const matchesKeyword = !searchKeyword || 
+                    log.title.toLowerCase().includes(searchKeyword) || 
+                    (log.theme && log.theme.toLowerCase().includes(searchKeyword)) ||
+                    (log.notes && log.notes.toLowerCase().includes(searchKeyword)) ||
+                    schedText.includes(searchKeyword);
+                
+                const matchesCategory = !categoryFilter || (log.category || '通常練習') === categoryFilter;
+                const matchesTarget = !targetFilter || log.target === targetFilter;
+                const matchesMonth = !monthFilter || (log.date && log.date.startsWith(monthFilter));
+
+                return matchesKeyword && matchesCategory && matchesTarget && matchesMonth;
+            });
+
+            document.getElementById('log-count').textContent = `${filtered.length}件`;
+            container.innerHTML = '';
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-xs text-slate-500 font-bold">該当する練習ログが見つかりません</div>`;
+                return;
+            }
+
+            filtered.forEach(log => {
+                const isSelected = log.id === selectedMenuId;
+                const card = document.createElement('div');
+                card.onclick = () => selectMenu(log.id);
+                card.className = `p-3 border-2 cursor-pointer transition-all ${
+                    isSelected 
+                        ? 'bg-slate-800 text-white border-slate-900 border-l-8 border-l-emerald-600 shadow-md' 
+                        : 'bg-slate-50 text-slate-900 border-slate-300 hover:border-slate-500 hover:bg-white'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center text-xs mb-1">
+                        <span class="font-bold text-[10px] ${isSelected ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-800'} px-1.5 py-0.5">${log.category || '通常練習'}</span>
+                        <span class="font-num font-bold ${isSelected ? 'text-slate-300' : 'text-slate-600'}">${log.date} (${log.day || '-'})</span>
+                    </div>
+                    <div class="font-bold text-sm ${isSelected ? 'text-white' : 'text-slate-900'} line-clamp-1 mb-1">${log.title}</div>
+                    <div class="text-xs ${isSelected ? 'text-slate-400' : 'text-slate-600'} line-clamp-1">${log.theme || 'テーマなし'}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // モーダル入力ダイアログ処理
+        function openCreateModal(editData = null) {
+            editingMenuId = editData ? editData.id : null;
+            document.getElementById('modal-title').textContent = editData ? "練習メニュー編集" : "練習メニュー新規作成";
+            document.getElementById('editor-error').classList.add('hidden');
+
+            if (editData) {
+                document.getElementById('input-date').value = editData.date;
+                document.getElementById('input-category').value = editData.category || categoriesList[0] || '通常練習';
+                document.getElementById('input-target').value = editData.target || '全員';
+                document.getElementById('input-location').value = editData.location || '';
+                document.getElementById('input-weather').value = editData.weather || '';
+                document.getElementById('input-title').value = editData.title || '';
+                document.getElementById('input-theme').value = editData.theme || '';
+                document.getElementById('input-notes').value = editData.notes || '';
+                
+                renderScheduleInputRows(getLogScheduleArray(editData));
+            } else {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('input-date').value = today;
+                document.getElementById('input-category').value = categoriesList[0] || '通常練習';
+                document.getElementById('input-target').value = '全員';
+                document.getElementById('input-location').value = '本グラウンド (16:00-18:30)';
+                document.getElementById('input-weather').value = '晴れ';
+                document.getElementById('input-title').value = '';
+                document.getElementById('input-theme').value = '';
+                document.getElementById('input-notes').value = '';
+                
+                if (templatesList.length > 0) {
+                    applyTemplateById(templatesList[0].id);
+                } else {
+                    renderScheduleInputRows([{ time: '16:00 - 16:30', detail: '' }]);
+                }
+            }
+
+            document.getElementById('editor-modal').classList.remove('hidden');
+        }
+
+        function closeCreateModal() {
+            document.getElementById('editor-modal').classList.add('hidden');
+        }
+
+        // 入力フォーム用：時間枠行の追加・削除
+        function renderScheduleInputRows(scheduleArray) {
+            const container = document.getElementById('editor-schedule-rows');
+            container.innerHTML = '';
+
+            const arr = scheduleArray && scheduleArray.length > 0 
+                ? scheduleArray 
+                : [{ time: '', detail: '' }];
+
+            arr.forEach((item, index) => {
+                createRowElement(item.time || '', item.detail || '');
+            });
+        }
+
+        function createRowElement(timeVal = '', detailVal = '') {
+            const container = document.getElementById('editor-schedule-rows');
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'schedule-row bg-white border border-slate-300 p-2.5 flex flex-col md:flex-row gap-2 items-start relative group';
+            
+            rowDiv.innerHTML = `
+                <div class="w-full md:w-44 shrink-0">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1 text-left">時間軸 (例: 16:00 - 16:30)</label>
+                    <input type="text" value="${escapeHtml(timeVal)}" placeholder="16:00 - 16:30" 
+                        class="row-time-input w-full bg-slate-50 border border-slate-300 p-2 font-num font-bold text-slate-800 text-xs text-left focus:bg-white focus:border-slate-600 focus:outline-none">
+                </div>
+                <div class="w-full flex-1">
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1 text-left">練習内容・詳細テキスト</label>
+                    <textarea rows="3" placeholder="【ウォーミングアップ】\n動的ストレッチ / ペッパー\n★意識: 胸元への正確な送球" 
+                        class="row-detail-input w-full bg-slate-50 border border-slate-300 p-2 text-slate-900 text-xs font-medium text-left focus:bg-white focus:border-slate-600 focus:outline-none">${escapeHtml(detailVal)}</textarea>
+                </div>
+                <button type="button" onclick="removeScheduleRow(this)" class="self-end md:self-center bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-700 p-2 border border-slate-300 transition-colors" title="この時間枠を削除">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            `;
+
+            container.appendChild(rowDiv);
+        }
+
+        function addScheduleRow() {
+            createRowElement('', '');
+        }
+
+        function removeScheduleRow(btn) {
+            const rows = document.querySelectorAll('#editor-schedule-rows .schedule-row');
+            if (rows.length <= 1) {
+                // 最低1行は残す
+                const timeInp = rows[0].querySelector('.row-time-input');
+                const detailInp = rows[0].querySelector('.row-detail-input');
+                if (timeInp) timeInp.value = '';
+                if (detailInp) detailInp.value = '';
+                return;
+            }
+            btn.closest('.schedule-row').remove();
+        }
+
+        // フォームからのスケジュールデータ抽出
+        function getScheduleFromInputs() {
+            const rows = document.querySelectorAll('#editor-schedule-rows .schedule-row');
+            const result = [];
+            rows.forEach(row => {
+                const timeVal = row.querySelector('.row-time-input').value.trim();
+                const detailVal = row.querySelector('.row-detail-input').value.trim();
+                if (timeVal || detailVal) {
+                    result.push({ time: timeVal, detail: detailVal });
+                }
+            });
+            return result;
+        }
+
+        function applyTemplateById(id) {
+            const tpl = templatesList.find(t => t.id === id);
+            if (!tpl) return;
+
+            document.getElementById('input-category').value = tpl.category || categoriesList[0] || '通常練習';
+            document.getElementById('input-title').value = tpl.title || '';
+            document.getElementById('input-theme').value = tpl.theme || '';
+            document.getElementById('input-location').value = tpl.location || '';
+            
+            renderScheduleInputRows(tpl.schedule || []);
+        }
+
+        // 入力内容を新規テンプレートとして保存
+        function saveAsNewTemplate() {
+            const titleVal = document.getElementById('input-title').value.trim();
+            if (!titleVal) {
+                alert('テンプレート化するには「練習タイトル」を入力してください。');
+                return;
+            }
+
+            const tplName = prompt('新規テンプレート名を入力してください:', titleVal);
+            if (!tplName) return;
+
+            const newTpl = {
+                id: `tpl-user-${Date.now()}`,
+                name: tplName,
+                category: document.getElementById('input-category').value,
+                title: titleVal,
+                theme: document.getElementById('input-theme').value.trim(),
+                location: document.getElementById('input-location').value.trim(),
+                schedule: getScheduleFromInputs()
+            };
+
+            templatesList.push(newTpl);
+            saveTemplates();
+            alert(`テンプレート「${tplName}」を保存しました。`);
+        }
+
+        function saveMenu() {
+            const dateVal = document.getElementById('input-date').value;
+            const titleVal = document.getElementById('input-title').value.trim();
+
+            if (!dateVal || !titleVal) {
+                document.getElementById('editor-error').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('editor-error').classList.add('hidden');
+
+            const dateObj = new Date(dateVal);
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            const dayStr = days[dateObj.getDay()];
+
+            const scheduleArr = getScheduleFromInputs();
+
+            const newLog = {
+                id: editingMenuId || `log-${dateVal}-${Date.now().toString().slice(-4)}`,
+                date: dateVal,
+                day: dayStr,
+                category: document.getElementById('input-category').value,
+                target: document.getElementById('input-target').value,
+                title: titleVal,
+                theme: document.getElementById('input-theme').value.trim(),
+                location: document.getElementById('input-location').value.trim(),
+                weather: document.getElementById('input-weather').value.trim(),
+                notes: document.getElementById('input-notes').value.trim(),
+                schedule: scheduleArr
+            };
+
+            if (editingMenuId) {
+                const idx = menuLogs.findIndex(item => item.id === editingMenuId);
+                if (idx !== -1) menuLogs[idx] = newLog;
+            } else {
+                menuLogs.unshift(newLog);
+            }
+
+            menuLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+            saveLogsToStorage();
+            populateMonthFilter();
+            closeCreateModal();
+            selectMenu(newLog.id);
+        }
+
+        function editCurrentMenu() {
+            if (!selectedMenuId) return;
+            const log = menuLogs.find(item => item.id === selectedMenuId);
+            if (log) openCreateModal(log);
+        }
+
+        function deleteCurrentMenu() {
+            if (!selectedMenuId) return;
+            document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+        }
+
+        function confirmDeleteMenu() {
+            if (!selectedMenuId) return;
+            menuLogs = menuLogs.filter(item => item.id !== selectedMenuId);
+            saveLogsToStorage();
+            populateMonthFilter();
+            closeDeleteModal();
+            if (menuLogs.length > 0) {
+                selectMenu(menuLogs[0].id);
+            } else {
+                selectedMenuId = null;
+                document.getElementById('view-title').textContent = 'メニューがありません';
+                renderLogsList();
+            }
+        }
+
+        // 指導者用：管理モーダル処理
+        function openManageModal() {
+            renderManageTagsList();
+            renderManageTemplatesList();
+            document.getElementById('manage-modal').classList.remove('hidden');
+        }
+
+        function closeManageModal() {
+            document.getElementById('manage-modal').classList.add('hidden');
+        }
+
+        function renderManageTagsList() {
+            const container = document.getElementById('manage-tags-list');
+            container.innerHTML = '';
+            categoriesList.forEach(tag => {
+                const badge = document.createElement('div');
+                badge.className = 'bg-white border border-slate-400 px-2.5 py-1 flex items-center gap-2 font-bold text-slate-800';
+                badge.innerHTML = `
+                    <span>${tag}</span>
+                    <button onclick="removeTag('${tag}')" class="text-slate-400 hover:text-rose-600 transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+                container.appendChild(badge);
+            });
+        }
+
+        function addNewTag() {
+            const input = document.getElementById('new-tag-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            if (categoriesList.includes(val)) {
+                alert('同名のタグが既に存在します。');
+                return;
+            }
+
+            categoriesList.push(val);
+            saveCategories();
+            input.value = '';
+            renderManageTagsList();
+        }
+
+        function removeTag(tag) {
+            if (categoriesList.length <= 1) {
+                alert('タグは最低1つ残す必要があります。');
+                return;
+            }
+            categoriesList = categoriesList.filter(t => t !== tag);
+            saveCategories();
+            renderManageTagsList();
+        }
+
+        function renderManageTemplatesList() {
+            const container = document.getElementById('manage-templates-list');
+            container.innerHTML = '';
+
+            if (templatesList.length === 0) {
+                container.innerHTML = `<div class="text-slate-500 font-bold p-2 text-center">テンプレートはありません</div>`;
+                return;
+            }
+
+            templatesList.forEach(tpl => {
+                const item = document.createElement('div');
+                item.className = 'bg-white border border-slate-300 p-2.5 flex justify-between items-center';
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-slate-900">${tpl.name}</div>
+                        <div class="text-[10px] text-slate-500">${tpl.category || ''} | ${tpl.title || ''}</div>
+                    </div>
+                    <button onclick="removeTemplate('${tpl.id}')" class="bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 border border-rose-300 font-bold transition-colors">
+                        削除
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function removeTemplate(id) {
+            templatesList = templatesList.filter(t => t.id !== id);
+            saveTemplates();
+            renderManageTemplatesList();
+        }
+
+        function saveMemberMemo() {
+            if (!selectedMenuId) return;
+            const text = document.getElementById('member-daily-memo').value;
+            localStorage.setItem(`memo_${selectedMenuId}`, text);
+            const indicator = document.getElementById('memo-saved-indicator');
+            indicator.classList.remove('opacity-0');
+            setTimeout(() => {
+                indicator.classList.add('opacity-0');
+            }, 2000);
+        }
+
+        function handlePrintClick() {
+            try {
+                window.print();
+            } catch (e) {
+                console.warn('window.print is not supported in this environment', e);
+            }
+
+            // Koder等のアプリ内内蔵ブラウザでは印刷コマンドが無視されるため、案内モーダルを表示
+            openPrintGuideModal();
+        }
+
+        function openPrintGuideModal() {
+            document.getElementById('print-guide-modal').classList.remove('hidden');
+        }
+
+        function closePrintGuideModal() {
+            document.getElementById('print-guide-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
